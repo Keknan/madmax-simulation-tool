@@ -5,6 +5,7 @@ using Plots
 include("transfer_matrix.jl")
 
 const c0 = 299792458.
+thickness = 1e-3
 
 abstract type Space end
 abstract type Dist <: Space end
@@ -92,22 +93,6 @@ function calculate_field(::Type{PlaneWave}, freq::Real, distances::AbstractVecto
     return z_vals, E_vals
 end
 
-## Testaufruf (s. Knirck)
-distance = [1.00334, 6.94754, 7.1766, 7.22788, 7.19717, 7.23776, 7.07746, 7.57173, 
-            7.08019, 7.24657, 7.21708, 7.18317, 7.13025, 7.2198,  7.45585, 7.39873, 
-            7.15403, 7.14252, 6.83105, 7.42282] * 1e-3
-
-z_22, E_22 = calculate_field(PlaneWave, 22.005e9, distance; nm=1e30) ## 22.005e9 auch wegen Knirck. Hässliche Zahl
-
-# theoretisch kann man schon hier das E Feld plotten, Knirck entscheidet sich aber den Imaginärteil wegzurotieren
-# Stehende Wellen und so
-ang = angle(E_22[end])
-
-E_22_rot = E_22 .* exp(-1im * ang)
-planarPlot = plot(z_22, real(E_22_rot), label="Re(E)", xlabel="z [m]", ylabel="E/E0", title="Ohne axion source")
-plot!(planarPlot, z_22, imag(E_22_rot), label="Im(E)")
-display(planarPlot)
-
 """
 Berechnet das E-Feld eines 1D MADMAX Aufbaus, wenn der Axionquellterm berücksichtigt wird. Entimmt auch nur distances.
 """
@@ -184,13 +169,50 @@ function calculate_field(::Type{WithAxion}, freq::Real, distances::AbstractVecto
     return z_vals, E_vals
 end
 
-# Testaufruf für Axionquellterm
+function plot_field(z_vals::AbstractVector{<:Real}, E_vals::AbstractVector{<:Complex}, distances::AbstractVector{<:Real}; mirror::Real=-2e-3, thickness::Real=1e-3, title::String="")
 
+    p = plot(xlabel="z [m]", ylabel="E/E0", title=title, legend=:bottomright)
+    
+    vspan!(p, [mirror, 0.0], color=:blue, alpha=0.5, label="Spiegel", linceolor=:transparent)
+
+    current_z_plot = 0.0
+    for i in eachindex(distances)
+        current_z_plot += distances[i]
+        disk_start = current_z_plot
+        disk_end = current_z_plot + thickness
+
+        lbl = i ==1 ? "Disk" : ""
+        vspan!(p, [disk_start, disk_end], color=:gray, alpha=0.3, label=lbl, linecolor=:transparent)
+
+        current_z_plot += thickness
+    end
+
+    plot!(p, z_vals, real(E_vals), label="Re(E)", color=:blue)
+    plot!(p, z_vals, imag(E_vals), label="Im(E)", color=:red)
+    display(p)
+
+    return p
+end
+
+## Testaufrufe ##
+
+
+# Testaufruf für Axionquellterm
 freq = 22e9 + 5e6
+distance = [1.00334, 6.94754, 7.1766, 7.22788, 7.19717, 7.23776, 7.07746, 7.57173, 
+            7.08019, 7.24657, 7.21708, 7.18317, 7.13025, 7.2198,  7.45585, 7.39873, 
+            7.15403, 7.14252, 6.83105, 7.42282] * 1e-3
 
 z_22, E_axion = calculate_field(WithAxion, freq, distance)
-
 E_axion_plot = E_axion .* exp(-1im * pi / 2 * 0.95)    ## auch von Knirck übernommen
-axionPlot = plot(z_22, real(E_axion_plot), label="Re(E)", xlabel="z [m]", ylabel="E/E0"; nm=1e30)
-plot!(axionPlot, z_22, imag(E_axion_plot), label="Im(E)")
-display(axionPlot)
+
+plot_field(z_22, E_axion_plot, distance;title="Axion Source")
+
+
+# Testaufruf ohne Quellterm für Reflexion
+z_22, E_22 = calculate_field(PlaneWave, 22.005e9, distance; nm=1e30) ## 22.005e9 auch wegen Knirck. Hässliche Zahl
+
+ang = angle(E_22[end])
+E_22_rot = E_22 .* exp(-1im * ang)
+
+plot_field(z_22, E_22_rot, distance; title="Reflection");
