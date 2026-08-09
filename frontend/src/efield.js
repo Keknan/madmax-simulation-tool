@@ -240,3 +240,191 @@ function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesse
     return { z: z_vals, E_re: E_vals.map(e => e.re), E_im: E_vals.map(e => e.im) };
 }
 
+//Next step is to extract data from the discplot to put it into calculateField and create the canvas
+let defaultFreq = 22.0;
+let isAxionMode = false;
+
+function getCurrentSetup() {
+    const arrangement = window.discplot;
+    if (!arrangement || !arrangement.discConfig) {
+        return null;
+    }
+
+    const discs = arrangement.discConfig.discs;
+    if (!discs || discs.length === 0) {
+        return null;
+    }
+
+    const sortedDiscs = [...discs].sort((a, b) => a.position - b.position);
+    const distances = [];
+    const thicknesses = [];
+
+    let currentPosCm = 0.0;
+    for (let i = 0; i < sortedDiscs.length; i++) {
+        let discPos = parseFloat(sortedDiscs[i].position);
+        let widthCm;
+
+        if (sortedDiscs[i].width !== undefined) {
+            widthCm = parseFloat(sortedDiscs[i].width);
+        } else {
+            widthCm = 0.2;
+        }
+
+        let dist_m = (discPos - currentPosCm) / 100.0;
+        distances.push(Math.max(0, dist_m));
+        thicknesses.push(widthCm / 100.0);
+
+        currentPosCm = discPos + widthCm;
+    }
+
+    return {distances, thicknesses};
+}
+
+window.updateEFieldPlot = function() {
+    const eCanvas = document.getElementById('efield-canvas');
+    const arrangement = window.discplot;
+
+    if (!eCanvas || !arrangement) {
+        return undefined;
+    }
+
+    const ctx = eCanvas.getContext("2d");
+    eCanvas.width = arrangement.discCanvas.width;
+    eCanvas.height = arrangement.discCanvas.height;
+    ctx.clearRect(0, 0, eCanvas.width, eCanvas.height);
+
+    const panel = document.getElementById("tab-Visualisation");
+    if (!panel || panel.style.display === "none") {
+        return undefined;
+    }
+
+    const setup = getCurrentSetup();
+    if (!setup) {
+        return undefined;
+    }
+
+    const epsInput = document.getElementById("eps");
+    const tandInput = document.getElementById("tand");
+    const eps = epsInput ? parseFloat(epsInput.value) : 24.0;
+    const tand = tandInput ? parseFloat(tandInput.value) * 1e-6 : 0.0;
+    const freqHz = defaultFreq * 1e9;
+
+    const fieldData = calculateField(isAxionMode, freqHz, setup.distances, eps, tand, setup.thicknesses);
+
+    const centerY = eCanvas.height - arrangement.padd[2];
+    const maxE = Math.max(...fieldData.E_re.map(Math.abs), ...fieldData.E_im.map(Math.abs), 1);
+    const bodyH = eCanvas.height - arrangement.padd[0] - arrangement.padd[2];
+    const scaleY = (bodyH * 0.4) / maxE;
+
+    function getPixelX(cm) {
+        return arrangement.padd[3] + arrangement.cm_to_pixel(cm);
+    }
+
+    function drawLine(data, color, isDashed = false) {
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+
+        if (isDashed) {
+            ctx.setLineDash([5,5]);
+        }
+
+        for (let i = 0; i< fieldData.z.length; i++) {
+            let zCm = fieldData.z[i] * 100.0;
+            let pixelX = getPixelX(zCm);
+            let pixelY = centerY - (data[i] * scaleY);
+
+            if (i === 0) {
+                ctx.moveTo(pixelX, pixelY);
+            } else {
+                ctx.lineTo(pixelX, pixelY);
+            }
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    drawLine(fieldData.E_im, "#2D325966", true);
+    drawLine(fieldData.E_re, "#E3A869");
+
+    const maxAmpDisplay = document.getElementById("max-amplitude-display");
+    if (maxAmpDisplay) {
+        maxAmpDisplay.textContent = `Max Amplitude |E|/E0: ${maxE.toFixed(2)}`;
+    }
+};
+
+//lastly, add event handlers 
+document.addEventListener("DOMContentLoaded", () => {
+    const slider = document.getElementById("freq-slider");
+    const input = document.getElementById("freq-input");
+    const selection = document.getElementById("induction-type");
+    const minInput = document.getElementById("slider-min");
+    const maxInput = document.getElementById("slider-max");
+
+    //induction type
+    if (selection) {
+        isAxionMode = (selection.value === "WithAxion");
+        selection.addEventListener("change", (e) => {
+            isAxionMode = (e.target.value === "WithAxion");
+            window.updateEFieldPlot();
+        });
+    }
+
+    //detect all movwment i wanna sleep
+    if (slider && input) {
+        slider.addEventListener("input", (e) => {
+            defaultFreq = parseFloat(e.target.value);
+            input.value = defaultFreq;
+            window.updateEFieldPlot();
+        });
+
+        input.addEventListener("change", (e) => {
+            defaultFreq = parseFloat(e.target.value);
+            slider.value = defaultFreq;
+            window.updateEFieldPlot();
+        });
+    }
+
+    //change slider boundaries wheeeeeeee
+    if (minInput && slider) {
+        minInput.addEventListener("change", (e) => {
+            slider.min = parseFloat(e.target.value);
+        });
+    }
+    if (maxInput && slider) {
+        maxInput.addEventListener("change", (e) => {
+            slider.max = parseFloat(e.target.value);
+        });
+    }
+
+    //trigger if click on tab and switch
+    const tabLinks = document.querySelectorAll(".nav-1 a");
+    tabLinks.forEach(link => {
+        link.addEventListener("click", function(e) {
+            e.preventDefault();
+            tabLinks.forEach(l => l.classList.remove("active"));
+            this.classList.add("active");
+
+            document.getElementById("tab-Download").style.display = "none";
+            document.getElementById("tab-Noise").style.display = "none";
+            document.getElementById("tab-Visualisation").style.display = "none";
+
+            const targetId = this.getAttribute("href").substring(1);
+            const targetTab = document.getElementById(targetId);
+
+            if (targetTab) {
+                targetTab.style.display = "block";
+            }
+
+            if (targetId === "tab-Visualisation") {
+                window.updateEFieldPlot();
+            } else {
+                const eCanvas = document.getElementById("efield-canvas");
+                if (eCanvas) {
+                    const ctx = CanvasCaptureMediaStreamTrack.getContext("2d");
+                    ctx.clearRect(0, 0, eCanvas.width, eCanvas.height);
+                }
+            }
+        });
+    });
+});
