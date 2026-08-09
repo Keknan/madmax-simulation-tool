@@ -1,0 +1,250 @@
+const c0 = 299792458;
+
+//Helper functions and structs
+
+class Complex{
+    constructor(re, im) {
+        this.re = re;
+        this.im = im;
+    }
+
+    add(c) {
+        return new Complex(this.re + c.re, this.im + c.im);
+    }
+    sub(c) {
+        return new Complex(this.re - c.re, this.im - c.im);
+    }
+    mul(c) {
+        return new Complex(this.re * c.re - this.im * c.im, this.re * c.im + this.im * c.re);
+    }
+    div(c) {
+        const denom = c.re * c.re + c.im * c.im;
+        return new Complex((this.re * c.re + this.im * c.im) / denom, (this.im * c.re - this.re * c.im) / denom);
+    }
+    scale(s) {
+        return new Complex(this.re * s, this.im * s);
+    }
+}
+
+// Deconstruct exp(-i * pi * x) into real and imaginary parts for cispi implementation of Julia
+function cispiComplex(c) {
+    const damp = Math.exp(-Math.PI * c.im);
+    return new Complex(damp * Math.cos(Math.PI * c.re), damp * Math.sin(Math.PI * c.re));
+}
+
+//Complex Square Root
+function csqrtComplex(c) {
+    const r = Math.sqrt(c.re * c.re + c.im * c.im);
+    const theta = Math.atan2(c.im, c.re) / 2;
+    return new Complex(Math.sqrt(r) * Math.cos(theta / 2), Math.sqrt(r) * Math.sin(theta / 2));
+}
+
+//Vector - Matrix multiplication
+function multMatVec(M, v) {
+    return [M[0][0] * v[0] + M[0][1] * v[1], M[1][0] * v[0] + M[1][1] * v[1]];
+}
+
+//Since transfer_matrix returns the squared boost and reflectivity, we have to calculate r and b again
+//This is transfer_matrix.jl rewritten essentially
+function getRAndB(freq, distances, eps, tand, thicknesses) {
+    const epsC = new Complex(eps, -tand * eps);
+    const nd = csqrtComplex(epsC);
+    const nm = new Complex(1e15, 0);
+
+    const A = (new Complex(1, 0)).sub((new Complex(1,0).div(epsC)));
+    const A0 = (new Complex(1,0)).sub((new Complex(1,0)).div(nm.mul(nm)));
+    
+    const Gd = [
+        [(new Complex(1,0).add(nd)).scale(0.5), nd.scale(0.5)],
+        [(new Complex(1,0).sub(nd)).scale(0.5), nd.scale(-0.5)]
+    ];
+    const twoNd = nd.scale(2);
+    const Gv = [
+        [nd.add(new Complex(1,0)).div(twoNd), nd.sub(new Complex(1, 0)).div(twoNd)],
+        [nd.sub(new Complex(1,0)).div(twoNd), nd.add(new Complex(1, 0)).div(twoNd)]
+    ];
+    const G0 = [
+        [(new Complex(1,0).add(nm)).scale(0.5), (new Complex(1,0)).sub(nm).scale(0.5)],
+        [(new Complex(1,0)).sub(nm).scale(0.5), (new Complex(1,0)).add(nm).scale(0.5)]
+    ];
+
+    const S = [[A.scale(0.5), new Complex(0,0)], [new Complex(0, 0), A.scale(0.5)]];
+    const S0 = [[A0.scale(0.5), new Complex(0,0)], [new Complex(0, 0), A0.scale(0.5)]];
+
+    let T = [[Gd[0][0], Gd[0][1]], [Gd[1][0], Gd[1][1]]];
+    let M = [[S[0][0], S[0][1]], [S[1][0], S[1][1]]];
+
+    function matMul(m1, m2) {
+        return [
+            [m1[0][0].mul(m2[0][0]).add(m1[0][1].mul(m2[1][0])), m1[0][0].mul(m2[0][1]).add(m1[0][1].mul(m2[1][1]))],
+            [m1[1][0].mul(m2[0][0]).add(m1[1][1].mul(m2[1][0])), m1[1][0].mul(m2[0][1]).add(m1[1][1].mul(m2[1][1]))]
+        ];
+    }
+    function matAdd(m1, m2) {
+        return [[m1[0][0].add(m2[0][0]), m1[0][1].add(m2[0][1])], [m1[1][0].add(m2[1][0]), m1[1][1].add(m2[1][1])]];
+    }
+    function matSub(m1, m2) {
+        return [[m1[0][0].sub(m2[0][0]), m1[0][1].sub(m2[0][1])], [m1[1][0].sub(m2[1][0]), m1[1][1].sub(m2[1][1])]];
+    }
+
+    for (let i = distances.length -1; i>= 0; i--) {
+        let thick = thicknesses[i];
+        let pd1 = cispiComplex(nd.scale(-2 * freq * thick / c0));
+        let pd2 = cispiComplex(nd.scale(2 * freq * thick / c0));
+        
+        T[0][0] = T[0][0].mul(pd1);
+        T[0][1] = T[0][1].mul(pd2);
+        T[1][0] = T[1][0].mul(pd1);
+        T[1][1] = T[1][1].mul(pd2);
+
+        M = matSub(M, matMul(T, S));
+        T = matMul(T, Gv);
+
+        let d = distances[i];
+        let pp1 = cispiComplex(new Complex(-2 * freq * d /c0, 0));
+        let pp2 = cispiComplex(new Complex(2 * freq * d /c0, 0));
+
+        T[0][0] = T[0][0].mul(pp1);
+        T[0][1] = T[0][1].mul(pp2);
+        T[1][0] = T[1][0].mul(pp1);
+        T[1][1] = T[1][1].mul(pp2);
+
+        if (i>0) {
+            M = matAdd(M, matMul(T, S));
+            T = matMul(T, Gd);
+        } else {
+            M = matAdd(M, matMul(T, S0));
+            T = matMul(T, G0);
+        }
+    }
+
+    let R = T[0][1].div(T[1][1]);
+    let sumM0 = M[0][0].add(M[0][1]);
+    let sumM1 = M[1][0].add(M[1][1]);
+    let B = sumM0.sub(sumM1.mul(R));
+
+    return {r: R, b: B};
+}
+
+function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesses = [], dpi = 500) {
+    if (!distances || distances.length === 0) {
+        return {z : [], E_re: [], E_im: []};
+    }
+
+    const rbData = getRAndB(freq, distances, eps, tand, thicknesses);
+    const R = rbData.r;
+    const B = rbData.b;
+
+    const epsC = new Complex(eps, -tand * eps);
+    const nd = csqrtComplex(epsC);
+    const complexOne = new Complex(1, 0);
+    const twoNd = nd.scale(2.0);
+
+    const G_d2v = [
+        [(new Complex(1,0).add(nd)).scale(0.5), nd.scale(0.5)],
+        [(new Complex(1,0).sub(nd)).scale(0.5), nd.scale(-0.5)]
+    ];
+
+    const G_v2d = [
+        [nd.add(new Complex(1,0)).div(twoNd), nd.sub(new Complex(1, 0)).div(twoNd)],
+        [nd.sub(new Complex(1,0)).div(twoNd), nd.add(new Complex(1, 0)).div(twoNd)]
+    ];
+
+    let V;
+    let S_axion;
+    let E_a;
+    let E_a_vac;
+
+    if (isAxion) {
+        V = [B, new Complex(0.0, 0.0)];
+        S_axion = new Complex(1.0, 0.0).div(epsC).sub(oneComplex).scale(0.5);
+        E_a = new Complex(1.0, 0.0).div(epsC);
+        E_a_vac = new Complex(1.0, 0.0);
+    } else {
+        V = [R, new Complex(1.0, 0.0)];
+        S_axion = new Complex(0.0, 0.0);
+        E_a = new Complex(0.0, 0.0);
+        E_a_vac = new Complex(0.0, 0.0);
+    }
+
+    let z_vals = [];
+    let E_vals = [];
+
+    let current_z = distances.reduce((acc, val) => acc + val, 0) + thicknesses.reduce((acc, val) => acc + val, 0);
+
+    for (let i = distances.length - 1; i >= 0; i--) {
+        V = multMatVec(G_v2d, V);
+        if (isAxion) {
+            V = [V[0].add(S_axion), V[1].add(S_axion)];
+        }
+
+        let thick = thicknesses[i];
+        let z_next = current_z - thick;
+
+        for (let k = 0; k < dpi; k++) {
+            let z = current_z - k * ((current_z - z_next) / (dpi - 1));
+            z_vals.push(z);
+            let phase = nd.scale((2 * freq * (current_z - z)) / c0);
+
+            let E_prop = V[0].mul(cispiComplex(phase)).add(V[1].mul(cispiComplex(phase.scale(-1))));
+            
+            if (isAxion) {
+                E_vals.push(E_a.sub(E_prop));
+            } else {
+                E_vals.push(E_prop);
+            }
+        }
+
+        let phase_disc = nd.scale((2 * freq * thick) / c0);
+        V = [V[0].mul(cispiComplex(phase_disc)), V[1].mul(cispiComplex(phase_disc.scale(-1)))];
+        current_z = z_next;
+
+        V = multMatVec(G_d2v, V);
+        if (isAxion) {
+            V = [V[0].sub(S_axion), V[1].sub(S_axion)];
+        }
+
+        let d = distances[i];
+        z_next = current_z - d;
+
+        for (let k = 0; k < dpi; k++) {
+            let z = current_z - k * ((current_z - z_next) / (dpi - 1));
+            z_vals.push(z);
+            let phase = new Complex((2 * freq * (current_z - z)) / c0, 0);
+
+            let E_prop = V[0].mul(cispiComplex(phase)).add(V[1].mul(cispiComplex(phase.scale(-1))));
+            
+            if (isAxion) {
+                E_vals.push(E_a_vac.sub(E_prop));
+            } else {
+                E_vals.push(E_prop);
+            }
+        }
+
+        let phase_vac = new Complex((2 * freq * d) / c0, 0);
+        V = [V[0].mul(cispiComplex(phase_vac)), V[1].mul(cispiComplex(phase_vac.scale(-1)))];
+        current_z = z_next;
+    }
+
+    z_vals.reverse();
+    E_vals.reverse();
+
+    if (!isAxion) {
+        let lastE = E_vals[E_vals.length - 1];
+        let ang = Math.atan2(lastE.im, lastE.re);
+        let rot = new Complex(Math.cos(-ang), Math.sin(-ang));
+
+        for (let i = 0; i < E_vals.length; i++) {
+            E_vals[i] = E_vals[i].mul(rot);
+        }
+    } else {
+        let ang = (Math.PI / 2) * 0.95;
+        let rot = new Complex(Math.cos(-ang), Math.sin(-ang));
+
+        for (let i = 0; i < E_vals.length; i++) {
+            E_vals[i] = E_vals[i].mul(rot);
+        }
+    }
+
+    return { z: z_vals, E_re: E_vals.map(e => e.re), E_im: E_vals.map(e => e.im) };
+}
