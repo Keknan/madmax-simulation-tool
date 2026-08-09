@@ -41,7 +41,10 @@ function csqrtComplex(c) {
 
 //Vector - Matrix multiplication
 function multMatVec(M, v) {
-    return [M[0][0] * v[0] + M[0][1] * v[1], M[1][0] * v[0] + M[1][1] * v[1]];
+    return [
+     M[0][0].mul(v[0]).add(M[0][1].mul(v[1])),
+     M[1][0].mul(v[0]).add(M[1][1].mul(v[1]))
+    ];
 }
 
 //Since transfer_matrix returns the squared boost and reflectivity, we have to calculate r and b again
@@ -421,7 +424,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 const eCanvas = document.getElementById("efield-canvas");
                 if (eCanvas) {
-                    const ctx = CanvasCaptureMediaStreamTrack.getContext("2d");
+                    const ctx = eCanvas.getContext("2d");
                     ctx.clearRect(0, 0, eCanvas.width, eCanvas.height);
                 }
             }
