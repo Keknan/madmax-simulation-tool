@@ -35,7 +35,7 @@ function cispiComplex(c) {
 //Complex Square Root
 function csqrtComplex(c) {
     const r = Math.sqrt(c.re * c.re + c.im * c.im);
-    const theta = Math.atan2(c.im, c.re) / 2;
+    const theta = Math.atan2(c.im, c.re);
     return new Complex(Math.sqrt(r) * Math.cos(theta / 2), Math.sqrt(r) * Math.sin(theta / 2));
 }
 
@@ -55,8 +55,8 @@ function getRAndB(freq, distances, eps, tand, thicknesses) {
     const A0 = (new Complex(1,0)).sub((new Complex(1,0)).div(nm.mul(nm)));
     
     const Gd = [
-        [(new Complex(1,0).add(nd)).scale(0.5), nd.scale(0.5)],
-        [(new Complex(1,0).sub(nd)).scale(0.5), nd.scale(-0.5)]
+        [(new Complex(1, 0)).add(nd).scale(0.5), (new Complex(1, 0)).sub(nd).scale(0.5)],
+        [(new Complex(1, 0)).sub(nd).scale(0.5), (new Complex(1, 0)).add(nd).scale(0.5)]
     ];
     const twoNd = nd.scale(2);
     const Gv = [
@@ -123,7 +123,7 @@ function getRAndB(freq, distances, eps, tand, thicknesses) {
     let sumM1 = M[1][0].add(M[1][1]);
     let B = sumM0.sub(sumM1.mul(R));
 
-    return {r: R, b: B};
+    return {r: R, b: B, Gd: Gd, Gv: Gv};
 }
 
 function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesses = [], dpi = 500) {
@@ -134,21 +134,12 @@ function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesse
     const rbData = getRAndB(freq, distances, eps, tand, thicknesses);
     const R = rbData.r;
     const B = rbData.b;
+    const G_d2v = rbData.Gd;
+    const G_v2d = rbData.Gv;
 
     const epsC = new Complex(eps, -tand * eps);
     const nd = csqrtComplex(epsC);
-    const complexOne = new Complex(1, 0);
     const twoNd = nd.scale(2.0);
-
-    const G_d2v = [
-        [(new Complex(1,0).add(nd)).scale(0.5), nd.scale(0.5)],
-        [(new Complex(1,0).sub(nd)).scale(0.5), nd.scale(-0.5)]
-    ];
-
-    const G_v2d = [
-        [nd.add(new Complex(1,0)).div(twoNd), nd.sub(new Complex(1, 0)).div(twoNd)],
-        [nd.sub(new Complex(1,0)).div(twoNd), nd.add(new Complex(1, 0)).div(twoNd)]
-    ];
 
     let V;
     let S_axion;
@@ -157,7 +148,7 @@ function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesse
 
     if (isAxion) {
         V = [B, new Complex(0.0, 0.0)];
-        S_axion = new Complex(1.0, 0.0).div(epsC).sub(oneComplex).scale(0.5);
+        S_axion = new Complex(1.0, 0.0).div(epsC).sub(new Complex(1, 0)).scale(0.5);
         E_a = new Complex(1.0, 0.0).div(epsC);
         E_a_vac = new Complex(1.0, 0.0);
     } else {
@@ -248,3 +239,4 @@ function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesse
 
     return { z: z_vals, E_re: E_vals.map(e => e.re), E_im: E_vals.map(e => e.im) };
 }
+
