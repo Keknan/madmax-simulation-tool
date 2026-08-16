@@ -1,3 +1,6 @@
+import {transfer_matrix } from "./transfer_matrix.js";
+import discplot from "./DiscPlot/discplot.js";
+
 const kB = 1.380649e-23; // Boltzmann constant
 const P0 = 2.2e-27; // Reference power from MADMAX Paper
 const gRef = 1e-15; // Reference coupling from MADMAX Paper
@@ -6,22 +9,47 @@ const gRef = 1e-15; // Reference coupling from MADMAX Paper
  * First part is dedicated to get time t until axion noise is detected for specific
  * parameters, and calculate minimal axion photon coupling constant for conversion to happen
  **/
-function getNoiseArrays(fMin, fMax, setup, eps, tand, thicknesses, BE, A, TSys, tIntSec, gTarget) {
+function getNoiseArrays(fMin, fMax, setup, eps, tand, BE, A, TSys, tIntSec, gTarget) {
     let gVals = [];
     let timeVals = [];
 
     const BRel = BE / 10.0;
     const ARel = A / 1.0;
 
-    for (let i = 0; i <= 500; i++) {
-        let fGHz = fMin + (fMax - fMin) * (i / 500);
-        let fHz = fGHz * 1e9;
+    const nSteps = 500;
+    const freqsGHz = [];
+    const freqsHz = [];
 
+    for (let i = 0; i <=nSteps; i++) {
+        let fGHz = fMin + (fMax - fMin) * (i / nSteps);
+        freqsGHz.push(fGHz);
+        freqsHz.push(fGHz * 1e9);
+    }
+
+    const kwargs = {};
+    if (!isNaN(eps)) {
+        kwargs["eps"] = eps;
+    }
+
+    if (!isNaN(tand)) {
+        kwargs["tand"] = tand;
+    }
+    
+    const positions = setup.discs.map(d => d.position);
+    const widths = setup.discs.map(d => d.width);
+
+    const {boostfactor} = transfer_matrix(freqsHz, positions, widths, kwargs);
+
+    for (let i = 0; i <= nSteps; i++) {
+        let fGHz = freqsGHz[i];
+        let fHz = freqsHz[i];
         let deltaNuA = fHz * 1e-6; // Derivation also in MADMAX Paper
-        let rbData = window.getRAndB(fHz, setup.distances, eps, tand, thicknesses);
-        let betaComplex = rbData.b;
-        let betaSquare = (betaComplex.re * betaComplex.re) + (betaComplex.im * betaComplex.im);
-        
+
+        let betaSquare = boostfactor[i];
+        if (betaSquare < 1e-10) {
+            betaSquare = 1e-10; //fallback to not divide by zero
+        }
+
         let numerator = (5.0 * kB * TSys) / (betaSquare * P0 * ARel * Math.pow(BRel, 2));
         let denominator = deltaNuA / tIntSec;
         let gSens = gRef * Math.sqrt(numerator) * Math.pow(denominator, 0.25);
@@ -145,8 +173,8 @@ function initNoisePlots() {
 
 // Controls and plotting
 window.updateNoisePlots = function() {
-    const setup = typeof getCurrentSetup === "function" ? getCurrentSetup() : null;
-    if (!setup) {
+    const discCollection = window.discplot ? window.discplot.discConfig : null;
+    if (!discCollection || discCollection.discs.length === 0) {
         return;
     }
 
@@ -164,7 +192,7 @@ window.updateNoisePlots = function() {
     const t_int_sec = t_int_days * 24 * 3600;
     const g_target = gtarget_input * 1e-14;
 
-    const {gVals: dataCoupling, timeVals: dataTime} = getNoiseArrays(fmin, fmax, setup, eps, tand, setup.thicknesses, B_e, A, T_sys, t_int_sec, g_target);
+    const {gVals: dataCoupling, timeVals: dataTime} = getNoiseArrays(fmin, fmax, discCollection, eps, tand, B_e, A, T_sys, t_int_sec, g_target);
 
     // coupling Plot updates
     if (window.couplingPlot) {
