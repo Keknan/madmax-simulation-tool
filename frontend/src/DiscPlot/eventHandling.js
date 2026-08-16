@@ -46,6 +46,9 @@ discplot.discConfig.on("disc:position", function ()  {
     rel_poisition_input.value = (selection.length > 0 && selection[0].before != null) ? selection[0].position - selection[0].before.rightEdge : "-";
     
     updateBoostplot(this);
+    if (typeof window.updateNoisePlots === "function") {
+        window.updateNoisePlots();
+    }
     discplot.draw();
 
     throttledUpdateEField();
@@ -75,6 +78,9 @@ discplot.discConfig.on(["disc:removed", "disc:added"], function () {
 
     updateBoostplot(this);
     discplot.draw();
+    if (typeof window.updateNoisePlots === "function") {
+        window.updateNoisePlots();
+    }
 
     throttledUpdateEField();
 })
