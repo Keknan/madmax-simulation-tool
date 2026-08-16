@@ -286,6 +286,7 @@ function getCurrentSetup() {
 window.updateEFieldPlot = function() {
     const eCanvas = document.getElementById('efield-canvas');
     const arrangement = window.discplot;
+    const eFieldToggle = document.getElementById("efield-toggle-switch");
 
     if (!eCanvas || !arrangement) {
         return undefined;
@@ -296,8 +297,7 @@ window.updateEFieldPlot = function() {
     eCanvas.height = arrangement.discCanvas.height;
     ctx.clearRect(0, 0, eCanvas.width, eCanvas.height);
 
-    const panel = document.getElementById("tab-Visualisation");
-    if (!panel || panel.style.display === "none") {
+    if (eFieldToggle && !eFieldToggle.checked) {
         return undefined;
     }
 
@@ -400,7 +400,13 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    //trigger if click on tab and switch
+    const eFieldToggle = document.getElementById("efield-toggle-switch");
+    if (eFieldToggle) {
+        eFieldToggle.addEventListener("change", () => {
+            window.updateEFieldPlot();
+        });
+    }
+
     const tabLinks = document.querySelectorAll(".nav-1 a");
     tabLinks.forEach(link => {
         link.addEventListener("click", function(e) {
@@ -419,17 +425,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 targetTab.style.display = "block";
             }
 
-            if (targetId === "tab-Visualisation") {
-                window.updateEFieldPlot();
-            } else {
-                const eCanvas = document.getElementById("efield-canvas");
-                if (eCanvas) {
-                    const ctx = eCanvas.getContext("2d");
-                    ctx.clearRect(0, 0, eCanvas.width, eCanvas.height);
-                }
-            }
+            window.updateEFieldPlot();
         });
-    });
+    })
+
+    setTimeout(() => {
+        if (typeof window.updateEFieldPlot === "function") {
+            window.updateEFieldPlot();
+        }
+    }, 100);
 });
 
 window.getRAndB = getRAndB;

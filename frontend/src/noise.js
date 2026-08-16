@@ -72,8 +72,8 @@ window.timePlot = null;
 function getNoiseColors() {
     const dark = matchMedia("(prefers-color-scheme: dark)").matches;
     return {
-        lineCoupling: dark ? '#5C6BC0' : '#2D3259',
-        lineTime: dark ? '#FFCA28' : '#E3A869',
+        lineCoupling: dark ? '#90A4AE' : '#607D8B',
+        lineTime: dark ? '#90A4AE' : '#607D8B',
         gridColor: dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
         tickColor: dark ? '#888780' : '#5F5E5A',
         tooltipBg: dark ? '#2C2C2A' : '#ffffff',
@@ -98,8 +98,8 @@ function makeNoiseChartConfig(data, yLabel, lineColor, c, reverseY = false) {
                 borderWidth: data.length > 300 ? 1 : 1.5,
                 pointRadius: data.length > 200 ? 0 : data.length > 80 ? 1 : 3,
                 pointHoverRadius: 4,
-                fill: false,
-                tension: 0.1,
+                fill: true,
+                tension: 0.35,
             }]
         },
         options: {
@@ -116,7 +116,7 @@ function makeNoiseChartConfig(data, yLabel, lineColor, c, reverseY = false) {
                     borderWidth: 1,
                     callbacks: {
                         title: items => "Freq: " + items[0].parsed.x.toFixed(3) + " GHz",
-                        label: item => yLabel + ": " + item.parsed.y.toExponential(2)
+                        label: item => yLabel + ": " + item.parsed.y.toExponential(1)
                     }
                 },
                 legend: {display: false}
@@ -137,7 +137,13 @@ function makeNoiseChartConfig(data, yLabel, lineColor, c, reverseY = false) {
                 y: {
                     type: "logarithmic",
                     reverse: reverseY,
-                    ticks: {color: c.tickColor, font: {size: 11}},
+                    ticks: {
+                        color: c.tickColor,
+                        font: {size: 11},
+                        callback: function(value) {
+                            return value.toExponential(2);
+                        }
+                    },
                     grid: {color: c.gridColor},
                     title: {
                         display: true,
@@ -230,7 +236,8 @@ window.updateNoisePlots = function() {
 document.addEventListener("DOMContentLoaded", () => {
     initNoisePlots();
 
-    const noiseInputs = ["noise-bfield", "noise-area", "noise-tsys", "noise-time", "noise-gtarget"];
+    const noiseInputs = ["noise-bfield", "noise-area", "noise-tsys", "noise-time", "noise-gtarget", "fmin", "fmax"];
+    
     noiseInputs.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
@@ -242,47 +249,38 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    const tabLinks = document.querySelectorAll(".nav-1 a");
-    tabLinks.forEach(link => {
-        link.addEventListener("click", function(e) {
-            const targetId = this.getAttribute("href").substring(1);
+    const plotToggle = document.getElementById("plot-toggle-switch");
+    if (plotToggle) {
+        plotToggle.addEventListener("change", (e) => {
+            const isNoiseMode = e.target.checked;
+            const plotsContainer = document.querySelector(".plots");
+
+            if (plotsContainer) {
+                plotsContainer.classList.toggle("noise-mode", isNoiseMode);
+            }
+
             const wrapBoost = document.getElementById("wrapper-boost");
             const wrapRefl = document.getElementById("wrapper-reflectivity");
             const wrapSNR = document.getElementById("wrapper-snr");
             const wrapCoupling = document.getElementById("wrapper-coupling");
 
-            if (targetId === "tab-Noise") {
-                if (wrapBoost) {
-                    wrapBoost.style.display = "none";
-                } 
-                if (wrapRefl) {
-                    wrapRefl.style.display = "none";
-                } 
-                if (wrapSNR) {
-                    wrapSNR.style.display = "block";
-                } 
-                if (wrapCoupling) {
-                    wrapCoupling.style.display = "block";
-                }
+            if (wrapBoost) wrapBoost.style.display = isNoiseMode ? "none" : "block";
+            if (wrapRefl) wrapRefl.style.display = isNoiseMode ? "none" : "block";
+            if (wrapSNR) wrapSNR.style.display = isNoiseMode ? "block" : "none";
+            if (wrapCoupling) wrapCoupling.style.display = isNoiseMode ? "block" : "none";
 
-                if (typeof window.updateNoisePlots === "function") {
-                    window.updateNoisePlots();
-                }
-            } else {
-                if (wrapBoost) {
-                    wrapBoost.style.display = "block";
-                } 
-                if (wrapRefl) {
-                    wrapRefl.style.display = "block";
-                } 
-                if (wrapSNR) {
-                    wrapSNR.style.display = "none";
-                } 
-                if (wrapCoupling) {
-                    wrapCoupling.style.display = "none";
-                }
+            if (isNoiseMode && typeof window.updateNoisePlots === "function") {
+                window.updateNoisePlots();
+            }
+        });
+    }
+
+    const tabLinks = document.querySelectorAll(".nav-1 a");
+    tabLinks.forEach(link => {
+        link.addEventListener("click", function(e) {
+            if (typeof window.updateNoisePlots === "function") {
+                window.updateNoisePlots();
             }
         });
     });
 });
-

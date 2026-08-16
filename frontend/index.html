@@ -340,6 +340,18 @@
                                         </div>
                                     </div>
                                  </div>
+
+                                <div style="display: flex; flex-direction: column; align-items: center; margin-top: 15px;">
+                                    <h5 style="margin: 0 0 8px 0; font-size: small; color: #333;">E-Field</h5>
+                                    <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
+                                        <span style="font-size: small; color: #5F5E5A;">Hide</span>
+                                        <label class="switch">
+                                            <input type="checkbox" id="efield-toggle-switch" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span style="font-size: small; color: #5F5E5A;">Show</span>
+                                    </div>
+                                </div>
                             </div> 
                         </div>  
                     </div>
@@ -349,7 +361,16 @@
             
         </div>
 
+
         <div class="plots">
+            <div id="plot-controls" style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px;">
+              <span style="font-size: small; color: #5F5E5A">Boost & Reflectivity</span>
+              <label class="switch">
+                <input type="checkbox" id="plot-toggle-switch">
+                <span class="slider"></span>
+              </label>
+              <span style="font-size: small; color: #5F5E5A;">Integration Time & Coupling</span>
+            </div>
             <!--display elements on the right side-->
 
             <!-- Boostplot -->

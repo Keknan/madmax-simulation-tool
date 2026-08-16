@@ -226,6 +226,11 @@ a.standard-button{
     height: 100vh;
     flex-direction: column;
     justify-content: space-evenly;
+    transition: background-color 0.3s ease;
+}
+
+.plots.noise-mode {
+    background-color: rgb(96, 125, 139, 0.20) !important;
 }
 
 .long-text-input{
