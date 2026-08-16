@@ -249,10 +249,39 @@
                         </div>
                         <!-- tab: Noise -->
                         <div class="tab tab-size-1" id="tab-Noise" style="display: none;">
-                            
-                            <!-- Inhalt -->
-                             Noise
-                            
+                            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%">
+                                <!-- get inputs for B, Tsys, A, t and g-->
+                                <div style="display: flex; gap: 10px; justify-content: space-between;">
+                                    <div class="input-wrapper" style="flex: 1; align-items: center;">
+                                        <label for="noise-bfield" style="font-size: small; margin-bottom: 3px;">B-Field [T]</label>
+                                        <input id="noise-bfield" type="text" class="standard-number-input" value="10.0" step="0.1" style="width: 80%;">
+                                    </div>
+
+                                    <div class="input-wrapper" style="flex: 1; align-items: center;">
+                                        <label for="noise-area" style="font-size: small; margin-bottom: 3px;">Area A [m²]</label>
+                                        <input id="noise-area" type="text" class="standard-number-input" value="1.0" step="0.1" style="width: 80%;">
+                                    </div>
+
+                              
+                                </div>
+
+                                <div style="display: flex; gap: 10px; justify-content: space-between;">
+                                    <div class="input-wrapper" style="flex: 1; align-items: center;">
+                                        <label for="noise-tsys" style="font-size: small; margin-bottom: 3px;">Sys. Temp. T [K]</label>
+                                        <input id="noise-tsys" type="text" class="standard-number-input" value="4.0" step="0.1" style="width: 80%;">
+                                    </div> 
+
+                                    <div class="input-wrapper" style="flex: 1; align-items: center;">
+                                        <label for="noise-time" style="font-size: small; margin-bottom: 3px;">Time t [d]</label>
+                                        <input id="noise-time" type="text" class="standard-number-input" value="7.0" step="1" style="width: 80%;">
+                                    </div>
+                                </div>   
+
+                                <div class="input-wrapper" style="width: 100%; align-items: center; border-top: 1px solid rgba(0, 0, 0, 0.1); padding-top: 15px; margin-top: 5px;">
+                                    <label for="noise-coupling" style="font-size: small; margin-bottom: 5px;">Target Coupling g [1e-14 GeV⁻¹] </label>
+                                    <input id="noise-time" type="text" class="standard-number-input" value="1.0" step="0.1" style="width: 50%;">
+                                </div>
+                            </div>
                         </div>
 
                         <!-- tab: Visualisation -->
@@ -324,13 +353,23 @@
 
             <!-- Boostplot -->
             <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-            <div  style="width: auto; height: 40%;">
+            <div id="wrapper-boost" style="width: auto; height: 40%;">
                 <canvas id="boostplot" aria-label="Plot for boostfactor curve"></canvas>
             </div>
 
             <!-- Reflectivity Plot -->
-            <div  style="width: auto; height: 40%;">
+            <div id="wrapper-reflectivity" style="width: auto; height: 40%;">
                 <canvas id="reflectivityplot" aria-label="Plot for reflectivity curve"></canvas>
+            </div>
+            
+            <!-- Signal Noise Ratio aka resulting integration time plot-->
+            <div id="wrapper-snr" style="width: auto; height: 40%; display: none;">
+                <canvas id="snrplot" aria-label="Plot for integration time"></canvas>
+            </div>
+
+            <!-- Coupling constant plot for each frequency-->
+            <div id="wrapper-coupling" style="width: auto; height: 40%; display: none;">
+                <canvas id="couplingplot" aria-label="Plot for axion-photon coupling"></canvas>
             </div>
         </div>
     </div>

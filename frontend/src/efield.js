@@ -431,3 +431,5 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
+
+window.getRAndB = getRAndB;
