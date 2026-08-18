@@ -128,7 +128,7 @@
                                 <h5 style="height: 34px; margin: 0; display: flex; justify-content: center; align-items: center; font-size: small;">Mirror</h5>
                                 <div style="height: 30px; display: flex; justify-items: center; align-items: center;">
                                     <label class="switch">
-                                        <input type="checkbox" id="mirror_checkbox">
+                                        <input type="checkbox" id="mirror_checkbox" onchange="if(window.updateBoostplot) window.updateBoostplot(window.discplot.discConfig); if(window.updateEFieldPlot) window.updateEFieldPlot(); if(window.updateNoisePlots) window.updateNoisePlots();">
                                         <span class="slider"></span>
                                     </label>
                                 </div>
@@ -304,12 +304,12 @@
                                 <!-- Frequency Choice -->
                                 <div class="input-wrapper"> 
                                     <label for="freq-input" style="font-size: small; margin-bottom: 3px;">Frequency (GHz)</label>
-                                    <input id="freq-input" type="number" class="standard-number-input" value="29.9" step="0.01" style="width: 80px;">
+                                    <input id="freq-input" type="number" class="standard-number-input" value="29.9" step="any" style="width: 80px;">
                                 </div>
 
                                 <!-- Slider -->
                                 <div class="input-wrapper" style="width: 100%">
-                                    <input id="freq-slider" type="range" min="29.8" max="30" value="29.9" step="0.01" style="width: 100%; accent-color: var(--madmax-yellow); cursor: pointer;">
+                                    <input id="freq-slider" type="range" min="29.8" max="30" value="29.9" step="any" style="width: 100%; accent-color: var(--madmax-yellow); cursor: pointer;">
                                 </div>
 
                                  <!-- Max Amplitude -->

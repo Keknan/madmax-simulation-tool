@@ -136,6 +136,11 @@ export default window.updateBoostplot = (discCollection) => {
     const tand = parseFloat(document.getElementById("tand").value) * 1e-6
     if (!isNaN(tand)) {kwargs["tand"] = tand;}
 
+    const mirrorToggle = document.getElementById("mirror_checkbox");
+    if (mirrorToggle) {
+        kwargs["nm"] = mirrorToggle.checked ? 1e15 : 1.0;
+    }
+
 
     const { boostfactor, reflectivity} = transfer_matrix(freq.map((e) => e*1e9), discCollection.discs.map(d => d.position), discCollection.discs.map(d => d.width), kwargs);
     const dataBoost = Array.from(boostfactor, (val, i) => ({ x: freq[i], y: val }));

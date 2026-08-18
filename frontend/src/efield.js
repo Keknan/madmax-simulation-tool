@@ -49,10 +49,10 @@ function multMatVec(M, v) {
 
 //Since transfer_matrix returns the squared boost and reflectivity, we have to calculate r and b again
 //This is transfer_matrix.jl rewritten essentially
-function getRAndB(freq, distances, eps, tand, thicknesses) {
+function getRAndB(freq, distances, eps, tand, thicknesses, hasMirror = false) {
     const epsC = new Complex(eps, -tand * eps);
     const nd = csqrtComplex(epsC);
-    const nm = new Complex(1e15, 0);
+    const nm = hasMirror ? new Complex(1e15, 0) : new Complex(1.0, 0);
 
     const A = (new Complex(1, 0)).sub((new Complex(1,0).div(epsC)));
     const A0 = (new Complex(1,0)).sub((new Complex(1,0)).div(nm.mul(nm)));
@@ -129,12 +129,12 @@ function getRAndB(freq, distances, eps, tand, thicknesses) {
     return {r: R, b: B, Gd: Gd, Gv: Gv};
 }
 
-function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesses = [], pointsPerCm = 50) {
+function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesses = [], pointsPerCm = 50, hasMirror = false) {
     if (!distances || distances.length === 0) {
         return {z : [], E_re: [], E_im: []};
     }
 
-    const rbData = getRAndB(freq, distances, eps, tand, thicknesses);
+    const rbData = getRAndB(freq, distances, eps, tand, thicknesses, hasMirror);
     const R = rbData.r;
     const B = rbData.b;
     const G_d2v = rbData.Gd;
@@ -326,7 +326,10 @@ window.updateEFieldPlot = function() {
     const selection = document.getElementById("induction-type");
     const currentIsAxionMode = selection ? (selection.value === "WithAxion") : false;
 
-    const fieldData = calculateField(currentIsAxionMode, freqHz, setup.distances, eps, tand, setup.thicknesses);
+    const mirrorToggle = document.getElementById("mirror_checkbox");
+    const hasMirror = mirrorToggle ? mirrorToggle.checked : false;
+
+    const fieldData = calculateField(currentIsAxionMode, freqHz, setup.distances, eps, tand, setup.thicknesses, 50, hasMirror);
 
     const centerY = eCanvas.height - arrangement.padd[2];
     const maxE = Math.max(...fieldData.E_re.map(Math.abs), ...fieldData.E_im.map(Math.abs), 1);
@@ -387,6 +390,9 @@ const setup = getCurrentSetup();
     const selection = document.getElementById("induction-type");
     const currentIsAxionMode = selection ? (selection.value === "WithAxion") : false;
 
+    const mirrorToggle = document.getElementById("mirror_checkbox");
+    const hasMirror = mirrorToggle ? mirrorToggle.checked : false;
+
     const loader = document.getElementById("heatmap-loader");
     const plotArea = document.getElementById("heatmap-plot-area");
 
@@ -412,7 +418,7 @@ const setup = getCurrentSetup();
         const zMatrix = [];
 
         const pointsPerCm = 50;
-        const fieldForZ = calculateField(currentIsAxionMode, fmin * 1e9, setup.distances, eps, tand, setup.thicknesses, pointsPerCm);
+        const fieldForZ = calculateField(currentIsAxionMode, fmin * 1e9, setup.distances, eps, tand, setup.thicknesses, pointsPerCm, hasMirror);
         const zAxis = fieldForZ.z.map(v => 100 * v); //convert to cm
 
         for (let i = 0; i < zAxis.length; i++) {
@@ -423,7 +429,7 @@ const setup = getCurrentSetup();
             let currentFGHz = fmin + (fmax - fmin) * (f / (fSteps -1));
             frequencies.push(currentFGHz);
 
-            let field = calculateField(currentIsAxionMode, currentFGHz * 1e9, setup.distances, eps, tand, setup.thicknesses, pointsPerCm);
+            let field = calculateField(currentIsAxionMode, currentFGHz * 1e9, setup.distances, eps, tand, setup.thicknesses, pointsPerCm, hasMirror);
 
             for (let i = 0; i < field.E_re.length; i ++) {
                 let amp = Math.sqrt(Math.pow(field.E_re[i], 2) + Math.pow(field.E_im[i], 2));
@@ -437,7 +443,7 @@ const setup = getCurrentSetup();
             y: zAxis,
             type: "heatmap",
             colorscale: "Viridis",
-            colorbar: {title: "|E| / E0"}
+            colorbar: {title: "|E / E0|"}
         }];
 
         const layout = {
