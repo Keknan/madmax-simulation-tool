@@ -244,9 +244,6 @@ function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesse
 }
 
 //Next step is to extract data from the discplot to put it into calculateField and create the canvas
-let defaultFreq = 22.0;
-let isAxionMode = false;
-
 function getCurrentSetup() {
     const arrangement = window.discplot;
     if (!arrangement || !arrangement.discConfig) {
@@ -310,9 +307,15 @@ window.updateEFieldPlot = function() {
     const tandInput = document.getElementById("tand");
     const eps = epsInput ? parseFloat(epsInput.value) : 24.0;
     const tand = tandInput ? parseFloat(tandInput.value) * 1e-6 : 0.0;
-    const freqHz = defaultFreq * 1e9;
 
-    const fieldData = calculateField(isAxionMode, freqHz, setup.distances, eps, tand, setup.thicknesses);
+    const freqInput = document.getElementById("freq-input");
+    const currentFreq = freqInput ? parseFloat(freqInput.value) : 22.0;
+    const freqHz = currentFreq * 1e9;
+
+    const selection = document.getElementById("induction-type");
+    const currentIsAxionMode = selection ? (selection.value === "WithAxion") : false;
+
+    const fieldData = calculateField(currentIsAxionMode, freqHz, setup.distances, eps, tand, setup.thicknesses);
 
     const centerY = eCanvas.height - arrangement.padd[2];
     const maxE = Math.max(...fieldData.E_re.map(Math.abs), ...fieldData.E_im.map(Math.abs), 1);
@@ -355,63 +358,5 @@ window.updateEFieldPlot = function() {
         maxAmpDisplay.textContent = `Max Amplitude |E|/E0: ${maxE.toFixed(2)}`;
     }
 };
-
-//lastly, add event handlers 
-document.addEventListener("DOMContentLoaded", () => {
-    const slider = document.getElementById("freq-slider");
-    const input = document.getElementById("freq-input");
-    const selection = document.getElementById("induction-type");
-    const minInput = document.getElementById("slider-min");
-    const maxInput = document.getElementById("slider-max");
-
-    //induction type
-    if (selection) {
-        isAxionMode = (selection.value === "WithAxion");
-        selection.addEventListener("change", (e) => {
-            isAxionMode = (e.target.value === "WithAxion");
-            window.updateEFieldPlot();
-        });
-    }
-
-    //detect all movwment i wanna sleep
-    if (slider && input) {
-        slider.addEventListener("input", (e) => {
-            defaultFreq = parseFloat(e.target.value);
-            input.value = defaultFreq;
-            window.updateEFieldPlot();
-        });
-
-        input.addEventListener("change", (e) => {
-            defaultFreq = parseFloat(e.target.value);
-            slider.value = defaultFreq;
-            window.updateEFieldPlot();
-        });
-    }
-
-    //change slider boundaries wheeeeeeee
-    if (minInput && slider) {
-        minInput.addEventListener("change", (e) => {
-            slider.min = parseFloat(e.target.value);
-        });
-    }
-    if (maxInput && slider) {
-        maxInput.addEventListener("change", (e) => {
-            slider.max = parseFloat(e.target.value);
-        });
-    }
-
-    const eFieldToggle = document.getElementById("efield-toggle-switch");
-    if (eFieldToggle) {
-        eFieldToggle.addEventListener("change", () => {
-            window.updateEFieldPlot();
-        });
-    }
-
-    setTimeout(() => {
-        if (typeof window.updateEFieldPlot === "function") {
-            window.updateEFieldPlot();
-        }
-    }, 100);
-});
 
 window.getRAndB = getRAndB;

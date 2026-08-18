@@ -93,4 +93,105 @@ window.discplot.discConfig.addDiscs(4)
 
 
 let compilationStatus = true;
+
+// =========================================================
+// UI EVENT LISTENER (E-Field & Noise Plots)
+// =========================================================
+document.addEventListener("DOMContentLoaded", () => {
+
+    const slider = document.getElementById("freq-slider");
+    const input = document.getElementById("freq-input");
+    const selection = document.getElementById("induction-type");
+    const minInput = document.getElementById("slider-min");
+    const maxInput = document.getElementById("slider-max");
+    const eFieldToggle = document.getElementById("efield-toggle-switch");
+
+    if (selection) {
+        selection.addEventListener("change", () => {
+            if (typeof window.updateEFieldPlot === "function") window.updateEFieldPlot();
+        });
+    }
+
+    if (slider && input) {
+        slider.addEventListener("input", (e) => {
+            input.value = e.target.value;
+            if (typeof window.updateEFieldPlot === "function") window.updateEFieldPlot();
+        });
+
+        input.addEventListener("change", (e) => {
+            slider.value = e.target.value;
+            if (typeof window.updateEFieldPlot === "function") window.updateEFieldPlot();
+        });
+    }
+
+    if (minInput && slider) minInput.addEventListener("change", (e) => slider.min = parseFloat(e.target.value));
+    if (maxInput && slider) maxInput.addEventListener("change", (e) => slider.max = parseFloat(e.target.value));
+
+    if (eFieldToggle) {
+        eFieldToggle.addEventListener("change", () => {
+            if (typeof window.updateEFieldPlot === "function") window.updateEFieldPlot();
+        });
+    }
+
+    const visTabLink = document.querySelector('a[href="#tab-Visualisation"]');
+    if (visTabLink) {
+        visTabLink.addEventListener("click", () => {
+            setTimeout(() => {
+                if (typeof window.updateEFieldPlot === "function") window.updateEFieldPlot();
+            }, 10);
+        });
+    }
+
+    setTimeout(() => {
+        if (typeof window.updateEFieldPlot === "function") window.updateEFieldPlot();
+    }, 100);
+
+    if (typeof window.initNoisePlots === "function") {
+        window.initNoisePlots();
+    }
+
+    const noiseInputs = ["noise-bfield", "noise-area", "noise-tsys", "noise-time", "noise-gtarget", "fmin", "fmax"];
+    noiseInputs.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener("change", () => {
+                if (typeof window.updateNoisePlots === "function") window.updateNoisePlots(); 
+            });
+        }
+    });
+
+    const plotToggle = document.getElementById("plot-toggle-switch");
+    if (plotToggle) {
+        plotToggle.addEventListener("change", (e) => {
+            const isNoiseMode = e.target.checked;
+            const plotsContainer = document.querySelector('.plots');
+            
+            if (plotsContainer) plotsContainer.classList.toggle('noise-mode', isNoiseMode);
+
+            const wrapBoost = document.getElementById("wrapper-boost");
+            const wrapRefl = document.getElementById("wrapper-reflectivity");
+            const wrapSNR = document.getElementById("wrapper-snr");
+            const wrapCoupling = document.getElementById("wrapper-coupling");
+
+            if (wrapBoost) wrapBoost.style.display = isNoiseMode ? "none" : "block";
+            if (wrapRefl) wrapRefl.style.display = isNoiseMode ? "none" : "block";
+            if (wrapSNR) wrapSNR.style.display = isNoiseMode ? "block" : "none";
+            if (wrapCoupling) wrapCoupling.style.display = isNoiseMode ? "block" : "none";
+
+            if (isNoiseMode && typeof window.updateNoisePlots === "function") {
+                window.updateNoisePlots();
+            } 
+        });
+    }
+
+    const noiseTabLink = document.querySelector('a[href="#tab-Noise"]');
+    if (noiseTabLink) {
+        noiseTabLink.addEventListener("click", () => {
+            setTimeout(() => {
+                if (typeof window.updateNoisePlots === "function") window.updateNoisePlots();
+            }, 10);
+        });
+    }
+});
+
 export default compilationStatus;
