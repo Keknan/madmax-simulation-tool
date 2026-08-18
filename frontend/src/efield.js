@@ -1,6 +1,6 @@
 const c0 = 299792458;
 
-//Helper functions and structs
+//Helper functions and new class for complex numbers
 
 class Complex{
     constructor(re, im) {
@@ -406,28 +406,6 @@ document.addEventListener("DOMContentLoaded", () => {
             window.updateEFieldPlot();
         });
     }
-
-    const tabLinks = document.querySelectorAll(".nav-1 a");
-    tabLinks.forEach(link => {
-        link.addEventListener("click", function(e) {
-            e.preventDefault();
-            tabLinks.forEach(l => l.classList.remove("active"));
-            this.classList.add("active");
-
-            document.getElementById("tab-Download").style.display = "none";
-            document.getElementById("tab-Noise").style.display = "none";
-            document.getElementById("tab-Visualisation").style.display = "none";
-
-            const targetId = this.getAttribute("href").substring(1);
-            const targetTab = document.getElementById(targetId);
-
-            if (targetTab) {
-                targetTab.style.display = "block";
-            }
-
-            window.updateEFieldPlot();
-        });
-    })
 
     setTimeout(() => {
         if (typeof window.updateEFieldPlot === "function") {
