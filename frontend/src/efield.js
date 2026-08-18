@@ -410,8 +410,8 @@ const setup = getCurrentSetup();
         if (fSteps > 1000) {
             fSteps = 1000;
         }
-        if (fSteps < 2) {
-            fSteps = 2;
+        if (fSteps < 300) {
+            fSteps = 300;
         }
 
         const frequencies = [];
@@ -446,11 +446,37 @@ const setup = getCurrentSetup();
             colorbar: {title: "|E / E0|"}
         }];
 
+        const shapes = [];
+        let currentZCm = 0;
+
+        for (let i = 0; i < setup.distances.length; i++) {
+            currentZCm += setup.distances[i] * 100;
+
+            let startZ = currentZCm;
+            let endZ = currentZCm + (setup.thicknesses[i] * 100);
+
+            shapes.push({
+                type: "rect",
+                xref: "paper",
+                x0: 0,
+                x1: 1,
+                yref: "y",
+                y0: startZ,
+                y1: endZ,
+                fillcolor: "rgba(255, 255, 255, 0.15)",
+                line: {width: 1, color: "rgba(255, 255, 255, 0.15"},
+                layer: "above"
+            });
+
+            currentZCm = endZ
+        }
+
         const layout = {
             title: "E-Field Amplitude Distribution",
             xaxis: {title: "Frequency / GHz"},
             yaxis: {title: "Position z / cm"},
-            margin: {t: 40, b: 50, l: 60, r: 20}
+            margin: {t: 40, b: 50, l: 60, r: 20},
+            shapes: shapes
         };
 
         if (loader) {

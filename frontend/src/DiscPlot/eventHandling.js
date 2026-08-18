@@ -39,7 +39,6 @@ const position_input = document.getElementById("position-input");
 const rel_poisition_input = document.getElementById("rel-position-input");
 const width_input = document.getElementById("width-input");
 
-
 discplot.discConfig.on("disc:position", function ()  {
     const selection = this.selectedDiscs
     position_input.value = (selection.length > 0) ? selection[0].position : "-";
@@ -87,6 +86,16 @@ discplot.discConfig.on(["disc:removed", "disc:added"], function () {
 
 discplot.discConfig.on("disc:property", function () {
     window.discplot.draw();
+
+    if (typeof window.updateBoostplot === "function") {
+        updateBoostplot(this);
+    }
+    if (typeof window.updateEFieldPlot === "function") {
+        throttledUpdateEField();
+    }
+    if (typeof window.updateNoisePlots === "function") {
+        window.updateNoisePlots();
+    }
 })
 
 window.discplot.discConfig.addDiscs(4)

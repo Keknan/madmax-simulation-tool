@@ -35,8 +35,8 @@ function getNoiseArrays(fMin, fMax, setup, eps, tand, BE, A, TSys, tIntSec, gTar
         kwargs["tand"] = tand;
     }
     
-    const positions = setup.discs.map(d => d.position);
-    const widths = setup.discs.map(d => d.width);
+    const positions = setup.discs.map(d => d.position / 100.0);
+    const widths = setup.discs.map(d => d.width / 100.0);
 
     const {boostfactor} = transfer_matrix(freqsHz, positions, widths, kwargs);
 
