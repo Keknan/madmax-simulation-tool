@@ -274,13 +274,4 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
-
-    const tabLinks = document.querySelectorAll(".nav-1 a");
-    tabLinks.forEach(link => {
-        link.addEventListener("click", function(e) {
-            if (typeof window.updateNoisePlots === "function") {
-                window.updateNoisePlots();
-            }
-        });
-    });
 });
