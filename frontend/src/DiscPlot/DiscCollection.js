@@ -425,6 +425,10 @@ export class DiscCollection {
     onDisc(position) {
         const canidate = this.positionNeighbour(position, "left");
 
+        if (!canidate) {
+            return null;
+        }
+        
         return (canidate.position <= position && canidate.rightEdge >= position) ? canidate : null;
     }
 
