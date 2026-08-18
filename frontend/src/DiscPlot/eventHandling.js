@@ -94,9 +94,7 @@ window.discplot.discConfig.addDiscs(4)
 
 let compilationStatus = true;
 
-// =========================================================
-// UI EVENT LISTENER (E-Field & Noise Plots)
-// =========================================================
+
 document.addEventListener("DOMContentLoaded", () => {
 
     const slider = document.getElementById("freq-slider");
@@ -191,6 +189,29 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (typeof window.updateNoisePlots === "function") window.updateNoisePlots();
             }, 10);
         });
+    }
+});
+
+//heatmap controls
+const openHeatmapBtn = document.getElementById("open-heatmap-btn");
+const closeHeatmapBtn = document.getElementById("close-heatmap-btn");
+const heatmapModal = document.getElementById("heatmap-modal");
+
+if (openHeatmapBtn && heatmapModal) {
+    openHeatmapBtn.addEventListener("click", () => {
+        heatmapModal.style.display = "flex";
+    });
+}
+
+if (closeHeatmapBtn) {
+    closeHeatmapBtn.addEventListener("click", () => {
+        heatmapModal.style.display = "none";
+    });
+}
+
+window.addEventListener("click", (e) => {
+    if (e.target === heatmapModal) {
+        heatmapModal.style.display = "none";
     }
 });
 
