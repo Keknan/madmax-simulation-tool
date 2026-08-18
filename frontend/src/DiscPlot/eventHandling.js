@@ -100,8 +100,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const slider = document.getElementById("freq-slider");
     const input = document.getElementById("freq-input");
     const selection = document.getElementById("induction-type");
-    const minInput = document.getElementById("slider-min");
-    const maxInput = document.getElementById("slider-max");
+    const fminGlobal = document.getElementById("fmin");
+    const fmaxGlobal = document.getElementById("fmax");
     const eFieldToggle = document.getElementById("efield-toggle-switch");
 
     if (selection) {
@@ -122,8 +122,8 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    if (minInput && slider) minInput.addEventListener("change", (e) => slider.min = parseFloat(e.target.value));
-    if (maxInput && slider) maxInput.addEventListener("change", (e) => slider.max = parseFloat(e.target.value));
+    if (fminGlobal && slider) fminGlobal.addEventListener("change", (e) => slider.min = parseFloat(e.target.value));
+    if (fmaxGlobal && slider) fmaxGlobal.addEventListener("change", (e) => slider.max = parseFloat(e.target.value));
 
     if (eFieldToggle) {
         eFieldToggle.addEventListener("change", () => {
@@ -200,6 +200,10 @@ const heatmapModal = document.getElementById("heatmap-modal");
 if (openHeatmapBtn && heatmapModal) {
     openHeatmapBtn.addEventListener("click", () => {
         heatmapModal.style.display = "flex";
+
+        if (typeof window.generateHeatmap === "function") {
+            window.generateHeatmap();
+        }
     });
 }
 

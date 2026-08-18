@@ -129,7 +129,7 @@ function getRAndB(freq, distances, eps, tand, thicknesses) {
     return {r: R, b: B, Gd: Gd, Gv: Gv};
 }
 
-function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesses = [], dpi = 500) {
+function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesses = [], pointsPerCm = 50) {
     if (!distances || distances.length === 0) {
         return {z : [], E_re: [], E_im: []};
     }
@@ -165,7 +165,7 @@ function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesse
     let E_vals = [];
 
     let current_z = distances.reduce((acc, val) => acc + val, 0) + thicknesses.reduce((acc, val) => acc + val, 0);
-
+    
     for (let i = distances.length - 1; i >= 0; i--) {
         V = multMatVec(G_v2d, V);
         if (isAxion) {
@@ -174,9 +174,14 @@ function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesse
 
         let thick = thicknesses[i];
         let z_next = current_z - thick;
+        let localDpi = Math.max(2, Math.round((thick * 100.0) * pointsPerCm));
 
-        for (let k = 0; k < dpi; k++) {
-            let z = current_z - k * ((current_z - z_next) / (dpi - 1));
+        for (let k = 0; k < localDpi; k++) {
+            if (z_vals.length > 0 && k===0) {
+                continue;
+            }
+
+            let z = current_z - k * ((current_z - z_next) / (localDpi - 1));
             z_vals.push(z);
             let phase = nd.scale((2 * freq * (current_z - z)) / c0);
 
@@ -201,8 +206,14 @@ function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesse
         let d = distances[i];
         z_next = current_z - d;
 
-        for (let k = 0; k < dpi; k++) {
-            let z = current_z - k * ((current_z - z_next) / (dpi - 1));
+        localDpi = Math.max(2, Math.round((d * 100.0) * pointsPerCm));
+
+        for (let k = 0; k < localDpi; k++) {
+            if (z_vals.length > 0 && k === 0) {
+                continue;
+            }
+
+            let z = current_z - k * ((current_z - z_next) / (localDpi - 1));
             z_vals.push(z);
             let phase = new Complex((2 * freq * (current_z - z)) / c0, 0);
 
@@ -359,4 +370,91 @@ window.updateEFieldPlot = function() {
     }
 };
 
+window.generateHeatmap = function() {
+const setup = getCurrentSetup();
+    if (!setup) return;
+
+    const epsInput = document.getElementById("eps");
+    const tandInput = document.getElementById("tand");
+    const eps = epsInput ? parseFloat(epsInput.value) : 24.0;
+    const tand = tandInput ? parseFloat(tandInput.value) * 1e-6 : 0.0;
+
+    const fminInput = document.getElementById("fmin");
+    const fmaxInput = document.getElementById("fmax");
+    const fmin = fminInput ? parseFloat(fminInput.value) : 20.0;
+    const fmax = fmaxInput ? parseFloat(fmaxInput.value) : 30.0;
+
+    const selection = document.getElementById("induction-type");
+    const currentIsAxionMode = selection ? (selection.value === "WithAxion") : false;
+
+    const loader = document.getElementById("heatmap-loader");
+    const plotArea = document.getElementById("heatmap-plot-area");
+
+    if (loader) {
+        loader.style.display = "block";
+    }
+
+    if (plotArea) {
+        plotArea.style.display = "none";
+    }
+
+    setTimeout(() => {
+        let fSteps = Math.round((fmax - fmin) / 0.01) + 1;
+
+        if (fSteps > 1000) {
+            fSteps = 1000;
+        }
+        if (fSteps < 2) {
+            fSteps = 2;
+        }
+
+        const frequencies = [];
+        const zMatrix = [];
+
+        const pointsPerCm = 50;
+        const fieldForZ = calculateField(currentIsAxionMode, fmin * 1e9, setup.distances, eps, tand, setup.thicknesses, pointsPerCm);
+        const zAxis = fieldForZ.z.map(v => 100 * v); //convert to cm
+
+        for (let i = 0; i < zAxis.length; i++) {
+            zMatrix.push(new Float64Array(fSteps));
+        }
+
+        for (let f = 0; f < fSteps; f++) {
+            let currentFGHz = fmin + (fmax - fmin) * (f / (fSteps -1));
+            frequencies.push(currentFGHz);
+
+            let field = calculateField(currentIsAxionMode, currentFGHz * 1e9, setup.distances, eps, tand, setup.thicknesses, pointsPerCm);
+
+            for (let i = 0; i < field.E_re.length; i ++) {
+                let amp = Math.sqrt(Math.pow(field.E_re[i], 2) + Math.pow(field.E_im[i], 2));
+                zMatrix[i][f] = amp;
+            }
+        }
+        
+        const data = [{
+            z: zMatrix,
+            x: frequencies,
+            y: zAxis,
+            type: "heatmap",
+            colorscale: "Viridis",
+            colorbar: {title: "|E| / E0"}
+        }];
+
+        const layout = {
+            title: "E-Field Amplitude Distribution",
+            xaxis: {title: "Frequency / GHz"},
+            yaxis: {title: "Position z / cm"},
+            margin: {t: 40, b: 50, l: 60, r: 20}
+        };
+
+        if (loader) {
+            loader.style.display = "none";
+        }
+
+        if (plotArea) {
+            plotArea.style.display = "block";
+            Plotly.newPlot("heatmap-plot-area", data, layout);
+        }
+    }, 50);
+};
 window.getRAndB = getRAndB;

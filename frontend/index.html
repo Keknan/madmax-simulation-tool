@@ -26,6 +26,9 @@
     <!-- Chart.js -->
      <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
+    <!-- Plotly.js for Heatmap-->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+
     <!-- stylesheets -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="custom-elements/navbar/navbar.css">
@@ -309,18 +312,6 @@
                                     <input id="freq-slider" type="range" min="29.8" max="30" value="29.9" step="0.01" style="width: 100%; accent-color: var(--madmax-yellow); cursor: pointer;">
                                 </div>
 
-                                <!-- Min Max for slider -->
-                                 <div class="input-row" style="font-size: x-small;">
-                                    <div class="input-wrapper">
-                                        <label for="slider-min" style="font-size: x-small;">Min</label>
-                                        <input id="slider-min" type="text" class="standard-number-input" value="29.8" style="width: 45px; height: 22px">
-                                    </div>
-                                    <div class="input-wrapper">
-                                        <label for="slider-max" style="font-size: x-small;">Max</label>
-                                        <input id="slider-max" type="text" class="standard-number-input" value="30" style="width: 45px; height: 22px">
-                                    </div>
-                                 </div>
-
                                  <!-- Max Amplitude -->
                                  <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0, 0, 0, 0, 0.1);">
                                     <div id="max-amplitude-display" style="font-size: small; font-weight: bold; margin-bottom: 12px; color: #333;">
@@ -420,6 +411,5 @@
 
     <!-- Scripte -->
     <script src="custom-elements/navbar/navbar.js"></script>
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 </body>
 </html>
