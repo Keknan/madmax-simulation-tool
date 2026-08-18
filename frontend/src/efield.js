@@ -1,0 +1,439 @@
+const c0 = 299792458;
+
+//Helper functions and structs
+
+class Complex{
+    constructor(re, im) {
+        this.re = re;
+        this.im = im;
+    }
+
+    add(c) {
+        return new Complex(this.re + c.re, this.im + c.im);
+    }
+    sub(c) {
+        return new Complex(this.re - c.re, this.im - c.im);
+    }
+    mul(c) {
+        return new Complex(this.re * c.re - this.im * c.im, this.re * c.im + this.im * c.re);
+    }
+    div(c) {
+        const denom = c.re * c.re + c.im * c.im;
+        return new Complex((this.re * c.re + this.im * c.im) / denom, (this.im * c.re - this.re * c.im) / denom);
+    }
+    scale(s) {
+        return new Complex(this.re * s, this.im * s);
+    }
+}
+
+// Deconstruct exp(-i * pi * x) into real and imaginary parts for cispi implementation of Julia
+function cispiComplex(c) {
+    const damp = Math.exp(-Math.PI * c.im);
+    return new Complex(damp * Math.cos(Math.PI * c.re), damp * Math.sin(Math.PI * c.re));
+}
+
+//Complex Square Root
+function csqrtComplex(c) {
+    const r = Math.sqrt(c.re * c.re + c.im * c.im);
+    const theta = Math.atan2(c.im, c.re);
+    return new Complex(Math.sqrt(r) * Math.cos(theta / 2), Math.sqrt(r) * Math.sin(theta / 2));
+}
+
+//Vector - Matrix multiplication
+function multMatVec(M, v) {
+    return [
+     M[0][0].mul(v[0]).add(M[0][1].mul(v[1])),
+     M[1][0].mul(v[0]).add(M[1][1].mul(v[1]))
+    ];
+}
+
+//Since transfer_matrix returns the squared boost and reflectivity, we have to calculate r and b again
+//This is transfer_matrix.jl rewritten essentially
+function getRAndB(freq, distances, eps, tand, thicknesses) {
+    const epsC = new Complex(eps, -tand * eps);
+    const nd = csqrtComplex(epsC);
+    const nm = new Complex(1e15, 0);
+
+    const A = (new Complex(1, 0)).sub((new Complex(1,0).div(epsC)));
+    const A0 = (new Complex(1,0)).sub((new Complex(1,0)).div(nm.mul(nm)));
+    
+    const Gd = [
+        [(new Complex(1, 0)).add(nd).scale(0.5), (new Complex(1, 0)).sub(nd).scale(0.5)],
+        [(new Complex(1, 0)).sub(nd).scale(0.5), (new Complex(1, 0)).add(nd).scale(0.5)]
+    ];
+    const twoNd = nd.scale(2);
+    const Gv = [
+        [nd.add(new Complex(1,0)).div(twoNd), nd.sub(new Complex(1, 0)).div(twoNd)],
+        [nd.sub(new Complex(1,0)).div(twoNd), nd.add(new Complex(1, 0)).div(twoNd)]
+    ];
+    const G0 = [
+        [(new Complex(1,0).add(nm)).scale(0.5), (new Complex(1,0)).sub(nm).scale(0.5)],
+        [(new Complex(1,0)).sub(nm).scale(0.5), (new Complex(1,0)).add(nm).scale(0.5)]
+    ];
+
+    const S = [[A.scale(0.5), new Complex(0,0)], [new Complex(0, 0), A.scale(0.5)]];
+    const S0 = [[A0.scale(0.5), new Complex(0,0)], [new Complex(0, 0), A0.scale(0.5)]];
+
+    let T = [[Gd[0][0], Gd[0][1]], [Gd[1][0], Gd[1][1]]];
+    let M = [[S[0][0], S[0][1]], [S[1][0], S[1][1]]];
+
+    function matMul(m1, m2) {
+        return [
+            [m1[0][0].mul(m2[0][0]).add(m1[0][1].mul(m2[1][0])), m1[0][0].mul(m2[0][1]).add(m1[0][1].mul(m2[1][1]))],
+            [m1[1][0].mul(m2[0][0]).add(m1[1][1].mul(m2[1][0])), m1[1][0].mul(m2[0][1]).add(m1[1][1].mul(m2[1][1]))]
+        ];
+    }
+    function matAdd(m1, m2) {
+        return [[m1[0][0].add(m2[0][0]), m1[0][1].add(m2[0][1])], [m1[1][0].add(m2[1][0]), m1[1][1].add(m2[1][1])]];
+    }
+    function matSub(m1, m2) {
+        return [[m1[0][0].sub(m2[0][0]), m1[0][1].sub(m2[0][1])], [m1[1][0].sub(m2[1][0]), m1[1][1].sub(m2[1][1])]];
+    }
+
+    for (let i = distances.length -1; i>= 0; i--) {
+        let thick = thicknesses[i];
+        let pd1 = cispiComplex(nd.scale(-2 * freq * thick / c0));
+        let pd2 = cispiComplex(nd.scale(2 * freq * thick / c0));
+        
+        T[0][0] = T[0][0].mul(pd1);
+        T[0][1] = T[0][1].mul(pd2);
+        T[1][0] = T[1][0].mul(pd1);
+        T[1][1] = T[1][1].mul(pd2);
+
+        M = matSub(M, matMul(T, S));
+        T = matMul(T, Gv);
+
+        let d = distances[i];
+        let pp1 = cispiComplex(new Complex(-2 * freq * d /c0, 0));
+        let pp2 = cispiComplex(new Complex(2 * freq * d /c0, 0));
+
+        T[0][0] = T[0][0].mul(pp1);
+        T[0][1] = T[0][1].mul(pp2);
+        T[1][0] = T[1][0].mul(pp1);
+        T[1][1] = T[1][1].mul(pp2);
+
+        if (i>0) {
+            M = matAdd(M, matMul(T, S));
+            T = matMul(T, Gd);
+        } else {
+            M = matAdd(M, matMul(T, S0));
+            T = matMul(T, G0);
+        }
+    }
+
+    let R = T[0][1].div(T[1][1]);
+    let sumM0 = M[0][0].add(M[0][1]);
+    let sumM1 = M[1][0].add(M[1][1]);
+    let B = sumM0.sub(sumM1.mul(R));
+
+    return {r: R, b: B, Gd: Gd, Gv: Gv};
+}
+
+function calculateField(isAxion, freq, distances, eps=24.0, tand=0.0, thicknesses = [], dpi = 500) {
+    if (!distances || distances.length === 0) {
+        return {z : [], E_re: [], E_im: []};
+    }
+
+    const rbData = getRAndB(freq, distances, eps, tand, thicknesses);
+    const R = rbData.r;
+    const B = rbData.b;
+    const G_d2v = rbData.Gd;
+    const G_v2d = rbData.Gv;
+
+    const epsC = new Complex(eps, -tand * eps);
+    const nd = csqrtComplex(epsC);
+    const twoNd = nd.scale(2.0);
+
+    let V;
+    let S_axion;
+    let E_a;
+    let E_a_vac;
+
+    if (isAxion) {
+        V = [B, new Complex(0.0, 0.0)];
+        S_axion = new Complex(1.0, 0.0).div(epsC).sub(new Complex(1, 0)).scale(0.5);
+        E_a = new Complex(1.0, 0.0).div(epsC);
+        E_a_vac = new Complex(1.0, 0.0);
+    } else {
+        V = [R, new Complex(1.0, 0.0)];
+        S_axion = new Complex(0.0, 0.0);
+        E_a = new Complex(0.0, 0.0);
+        E_a_vac = new Complex(0.0, 0.0);
+    }
+
+    let z_vals = [];
+    let E_vals = [];
+
+    let current_z = distances.reduce((acc, val) => acc + val, 0) + thicknesses.reduce((acc, val) => acc + val, 0);
+
+    for (let i = distances.length - 1; i >= 0; i--) {
+        V = multMatVec(G_v2d, V);
+        if (isAxion) {
+            V = [V[0].add(S_axion), V[1].add(S_axion)];
+        }
+
+        let thick = thicknesses[i];
+        let z_next = current_z - thick;
+
+        for (let k = 0; k < dpi; k++) {
+            let z = current_z - k * ((current_z - z_next) / (dpi - 1));
+            z_vals.push(z);
+            let phase = nd.scale((2 * freq * (current_z - z)) / c0);
+
+            let E_prop = V[0].mul(cispiComplex(phase)).add(V[1].mul(cispiComplex(phase.scale(-1))));
+            
+            if (isAxion) {
+                E_vals.push(E_a.sub(E_prop));
+            } else {
+                E_vals.push(E_prop);
+            }
+        }
+
+        let phase_disc = nd.scale((2 * freq * thick) / c0);
+        V = [V[0].mul(cispiComplex(phase_disc)), V[1].mul(cispiComplex(phase_disc.scale(-1)))];
+        current_z = z_next;
+
+        V = multMatVec(G_d2v, V);
+        if (isAxion) {
+            V = [V[0].sub(S_axion), V[1].sub(S_axion)];
+        }
+
+        let d = distances[i];
+        z_next = current_z - d;
+
+        for (let k = 0; k < dpi; k++) {
+            let z = current_z - k * ((current_z - z_next) / (dpi - 1));
+            z_vals.push(z);
+            let phase = new Complex((2 * freq * (current_z - z)) / c0, 0);
+
+            let E_prop = V[0].mul(cispiComplex(phase)).add(V[1].mul(cispiComplex(phase.scale(-1))));
+            
+            if (isAxion) {
+                E_vals.push(E_a_vac.sub(E_prop));
+            } else {
+                E_vals.push(E_prop);
+            }
+        }
+
+        let phase_vac = new Complex((2 * freq * d) / c0, 0);
+        V = [V[0].mul(cispiComplex(phase_vac)), V[1].mul(cispiComplex(phase_vac.scale(-1)))];
+        current_z = z_next;
+    }
+
+    z_vals.reverse();
+    E_vals.reverse();
+
+    if (!isAxion) {
+        let lastE = E_vals[E_vals.length - 1];
+        let ang = Math.atan2(lastE.im, lastE.re);
+        let rot = new Complex(Math.cos(-ang), Math.sin(-ang));
+
+        for (let i = 0; i < E_vals.length; i++) {
+            E_vals[i] = E_vals[i].mul(rot);
+        }
+    } else {
+        let ang = (Math.PI / 2) * 0.95;
+        let rot = new Complex(Math.cos(-ang), Math.sin(-ang));
+
+        for (let i = 0; i < E_vals.length; i++) {
+            E_vals[i] = E_vals[i].mul(rot);
+        }
+    }
+
+    return { z: z_vals, E_re: E_vals.map(e => e.re), E_im: E_vals.map(e => e.im) };
+}
+
+//Next step is to extract data from the discplot to put it into calculateField and create the canvas
+let defaultFreq = 22.0;
+let isAxionMode = false;
+
+function getCurrentSetup() {
+    const arrangement = window.discplot;
+    if (!arrangement || !arrangement.discConfig) {
+        return null;
+    }
+
+    const discs = arrangement.discConfig.discs;
+    if (!discs || discs.length === 0) {
+        return null;
+    }
+
+    const sortedDiscs = [...discs].sort((a, b) => a.position - b.position);
+    const distances = [];
+    const thicknesses = [];
+
+    let currentPosCm = 0.0;
+    for (let i = 0; i < sortedDiscs.length; i++) {
+        let discPos = parseFloat(sortedDiscs[i].position);
+        let widthCm;
+
+        if (sortedDiscs[i].width !== undefined) {
+            widthCm = parseFloat(sortedDiscs[i].width);
+        } else {
+            widthCm = 0.2;
+        }
+
+        let dist_m = (discPos - currentPosCm) / 100.0;
+        distances.push(Math.max(0, dist_m));
+        thicknesses.push(widthCm / 100.0);
+
+        currentPosCm = discPos + widthCm;
+    }
+
+    return {distances, thicknesses};
+}
+
+window.updateEFieldPlot = function() {
+    const eCanvas = document.getElementById('efield-canvas');
+    const arrangement = window.discplot;
+    const eFieldToggle = document.getElementById("efield-toggle-switch");
+
+    if (!eCanvas || !arrangement) {
+        return undefined;
+    }
+
+    const ctx = eCanvas.getContext("2d");
+    eCanvas.width = arrangement.discCanvas.width;
+    eCanvas.height = arrangement.discCanvas.height;
+    ctx.clearRect(0, 0, eCanvas.width, eCanvas.height);
+
+    if (eFieldToggle && !eFieldToggle.checked) {
+        return undefined;
+    }
+
+    const setup = getCurrentSetup();
+    if (!setup) {
+        return undefined;
+    }
+
+    const epsInput = document.getElementById("eps");
+    const tandInput = document.getElementById("tand");
+    const eps = epsInput ? parseFloat(epsInput.value) : 24.0;
+    const tand = tandInput ? parseFloat(tandInput.value) * 1e-6 : 0.0;
+    const freqHz = defaultFreq * 1e9;
+
+    const fieldData = calculateField(isAxionMode, freqHz, setup.distances, eps, tand, setup.thicknesses);
+
+    const centerY = eCanvas.height - arrangement.padd[2];
+    const maxE = Math.max(...fieldData.E_re.map(Math.abs), ...fieldData.E_im.map(Math.abs), 1);
+    const bodyH = eCanvas.height - arrangement.padd[0] - arrangement.padd[2];
+    const scaleY = (bodyH * 0.4) / maxE;
+
+    function getPixelX(cm) {
+        return arrangement.padd[3] + arrangement.cm_to_pixel(cm);
+    }
+
+    function drawLine(data, color, isDashed = false) {
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+
+        if (isDashed) {
+            ctx.setLineDash([5,5]);
+        }
+
+        for (let i = 0; i< fieldData.z.length; i++) {
+            let zCm = fieldData.z[i] * 100.0;
+            let pixelX = getPixelX(zCm);
+            let pixelY = centerY - (data[i] * scaleY);
+
+            if (i === 0) {
+                ctx.moveTo(pixelX, pixelY);
+            } else {
+                ctx.lineTo(pixelX, pixelY);
+            }
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    drawLine(fieldData.E_im, "#2D325966", true);
+    drawLine(fieldData.E_re, "#E3A869");
+
+    const maxAmpDisplay = document.getElementById("max-amplitude-display");
+    if (maxAmpDisplay) {
+        maxAmpDisplay.textContent = `Max Amplitude |E|/E0: ${maxE.toFixed(2)}`;
+    }
+};
+
+//lastly, add event handlers 
+document.addEventListener("DOMContentLoaded", () => {
+    const slider = document.getElementById("freq-slider");
+    const input = document.getElementById("freq-input");
+    const selection = document.getElementById("induction-type");
+    const minInput = document.getElementById("slider-min");
+    const maxInput = document.getElementById("slider-max");
+
+    //induction type
+    if (selection) {
+        isAxionMode = (selection.value === "WithAxion");
+        selection.addEventListener("change", (e) => {
+            isAxionMode = (e.target.value === "WithAxion");
+            window.updateEFieldPlot();
+        });
+    }
+
+    //detect all movwment i wanna sleep
+    if (slider && input) {
+        slider.addEventListener("input", (e) => {
+            defaultFreq = parseFloat(e.target.value);
+            input.value = defaultFreq;
+            window.updateEFieldPlot();
+        });
+
+        input.addEventListener("change", (e) => {
+            defaultFreq = parseFloat(e.target.value);
+            slider.value = defaultFreq;
+            window.updateEFieldPlot();
+        });
+    }
+
+    //change slider boundaries wheeeeeeee
+    if (minInput && slider) {
+        minInput.addEventListener("change", (e) => {
+            slider.min = parseFloat(e.target.value);
+        });
+    }
+    if (maxInput && slider) {
+        maxInput.addEventListener("change", (e) => {
+            slider.max = parseFloat(e.target.value);
+        });
+    }
+
+    const eFieldToggle = document.getElementById("efield-toggle-switch");
+    if (eFieldToggle) {
+        eFieldToggle.addEventListener("change", () => {
+            window.updateEFieldPlot();
+        });
+    }
+
+    const tabLinks = document.querySelectorAll(".nav-1 a");
+    tabLinks.forEach(link => {
+        link.addEventListener("click", function(e) {
+            e.preventDefault();
+            tabLinks.forEach(l => l.classList.remove("active"));
+            this.classList.add("active");
+
+            document.getElementById("tab-Download").style.display = "none";
+            document.getElementById("tab-Noise").style.display = "none";
+            document.getElementById("tab-Visualisation").style.display = "none";
+
+            const targetId = this.getAttribute("href").substring(1);
+            const targetTab = document.getElementById(targetId);
+
+            if (targetTab) {
+                targetTab.style.display = "block";
+            }
+
+            window.updateEFieldPlot();
+        });
+    })
+
+    setTimeout(() => {
+        if (typeof window.updateEFieldPlot === "function") {
+            window.updateEFieldPlot();
+        }
+    }, 100);
+});
+
+window.getRAndB = getRAndB;

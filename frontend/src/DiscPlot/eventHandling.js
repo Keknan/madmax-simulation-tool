@@ -17,6 +17,14 @@ import discplot from "./discplot.js";
 import updateBoostplot from "../boostplot.js";
 import { transfer_matrix } from "../transfer_matrix.js";
 
+let eFieldTimeout = null;
+function throttledUpdateEField() {
+    if (window.updateEFieldPlot) {
+        eFieldTimeout = setTimeout(() => {
+            window.updateEFieldPlot();
+        }, 50);
+    }
+}
 
 // Section Material:
 const mirror_checkbox = document.getElementById("mirror_checkbox");
@@ -38,7 +46,12 @@ discplot.discConfig.on("disc:position", function ()  {
     rel_poisition_input.value = (selection.length > 0 && selection[0].before != null) ? selection[0].position - selection[0].before.rightEdge : "-";
     
     updateBoostplot(this);
+    if (typeof window.updateNoisePlots === "function") {
+        window.updateNoisePlots();
+    }
     discplot.draw();
+
+    throttledUpdateEField();
 })
 
 
@@ -65,6 +78,11 @@ discplot.discConfig.on(["disc:removed", "disc:added"], function () {
 
     updateBoostplot(this);
     discplot.draw();
+    if (typeof window.updateNoisePlots === "function") {
+        window.updateNoisePlots();
+    }
+
+    throttledUpdateEField();
 })
 
 discplot.discConfig.on("disc:property", function () {

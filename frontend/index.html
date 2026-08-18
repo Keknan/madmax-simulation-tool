@@ -35,7 +35,8 @@
 
 
     <script type="module" src="src/DiscPlot/index.js" defer></script>
-
+    <script src="src/efield.js" defer></script>
+    <script type="module" src="src/noise.js" defer></script>
 </head>
 <body>
     <div class="page-content">
@@ -44,6 +45,7 @@
             <div style="position: relative; height: 50vh;">
                 <canvas id="axis" style="position: absolute;"></canvas>
                 <canvas id="discs" style="position: absolute;"></canvas>
+                <canvas id="efield-canvas" style="position:absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;"></canvas>
             </div>
             <div class="card-grid">
                 <!--card 1-->
@@ -209,7 +211,7 @@
                     <script type="module" src="src/CodeEditor/pyodide-main.js"></script>
                  </div>
 
-                <!-- card 2 -->
+                <!-- card 3 -->
                  <div class="card" style="height: auto;">
                     <h4>Small Applications</h4>
                     <div class="nav-wrap">
@@ -221,6 +223,9 @@
                             </a>
                             <a href="#tab-Noise">
                                 <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M280-240v-480h80v480h-80ZM440-80v-800h80v800h-80ZM120-400v-160h80v160h-80Zm480 160v-480h80v480h-80Zm160-160v-160h80v160h-80Z"/></svg>
+                            </a>
+                            <a href="#tab-Visualisation">
+                                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="m636-84-57-57q66-66 103.5-152.5T720-480q0-100-37.5-186.5T579-819l57-57q76 76 120 177.5T800-480q0 117-44 218.5T636-84ZM523-197l-57-57q44-44 69-102t25-124q0-66-25-124t-69-102l57-57q54 54 85.5 127T640-480q0 83-31.5 156T523-197ZM410-310l-57-57q22-22 34.5-51t12.5-62q0-33-12.5-62T353-593l57-57q32 32 51 76t19 94q0 50-19 94t-51 76ZM160-160v-640h80v240q33 0 56.5 23.5T320-480q0 33-23.5 56.5T240-400v240h-80Z"/></svg>
                             </a>
                         </nav>
                     </div>
@@ -245,11 +250,110 @@
                         </div>
                         <!-- tab: Noise -->
                         <div class="tab tab-size-1" id="tab-Noise" style="display: none;">
-                            
-                            <!-- Inhalt -->
-                             Noise
-                            
+                            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%">
+                                <!-- get inputs for B, Tsys, A, t and g-->
+                                <div style="display: flex; gap: 10px; justify-content: space-between;">
+                                    <div class="input-wrapper" style="flex: 1; align-items: center;">
+                                        <label for="noise-bfield" style="font-size: small; margin-bottom: 3px;">B-Field [T]</label>
+                                        <input id="noise-bfield" type="text" class="standard-number-input" value="10.0" step="0.1" style="width: 80%;">
+                                    </div>
+
+                                    <div class="input-wrapper" style="flex: 1; align-items: center;">
+                                        <label for="noise-area" style="font-size: small; margin-bottom: 3px;">Area A [m²]</label>
+                                        <input id="noise-area" type="text" class="standard-number-input" value="1.0" step="0.1" style="width: 80%;">
+                                    </div>
+
+                              
+                                </div>
+
+                                <div style="display: flex; gap: 10px; justify-content: space-between;">
+                                    <div class="input-wrapper" style="flex: 1; align-items: center;">
+                                        <label for="noise-tsys" style="font-size: small; margin-bottom: 3px;">Sys. Temp. T [K]</label>
+                                        <input id="noise-tsys" type="text" class="standard-number-input" value="4.0" step="0.1" style="width: 80%;">
+                                    </div> 
+
+                                    <div class="input-wrapper" style="flex: 1; align-items: center;">
+                                        <label for="noise-time" style="font-size: small; margin-bottom: 3px;">Time t [d]</label>
+                                        <input id="noise-time" type="text" class="standard-number-input" value="7.0" step="1" style="width: 80%;">
+                                    </div>
+                                </div>   
+
+                                <div class="input-wrapper" style="width: 100%; align-items: center; border-top: 1px solid rgba(0, 0, 0, 0.1); padding-top: 15px; margin-top: 5px;">
+                                    <label for="noise-gtarget" style="font-size: small; margin-bottom: 5px;">Target Coupling g [1e-14 GeV⁻¹] </label>
+                                    <input id="noise-gtarget" type="text" class="standard-number-input" value="1.0" step="0.1" style="width: 50%;">
+                                </div>
+                            </div>
                         </div>
+
+                        <!-- tab: Visualisation -->
+                        <div class="tab tab-size-1" id="tab-Visualisation" style="display: none;">
+                            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                                
+                                <!-- Simulation Type -->
+                                <div class="input-wrapper">
+                                    <label for="induction-type" style="font-size: small; margin-bottom: 3px;">Simulation Type</label>
+                                    <select id="induction-type" class="standard-number-input" style="width: 100%; height: var(--standard-height);">
+                                        <option value="WithAxion">Axion induced</option>
+                                        <option value="PlaneWave">Externally induced</option>
+                                    </select>
+                                </div>
+
+                                <!-- Frequency Choice -->
+                                <div class="input-wrapper"> 
+                                    <label for="freq-input" style="font-size: small; margin-bottom: 3px;">Frequency (GHz)</label>
+                                    <input id="freq-input" type="number" class="standard-number-input" value="22" step="0.01" style="width: 80px;">
+                                </div>
+
+                                <!-- Slider -->
+                                <div class="input-wrapper" style="width: 100%">
+                                    <input id="freq-slider" type="range" min="20" max="40" value="29" step="0.01" style="width: 100%; accent-color: var(--madmax-yellow); cursor: pointer;">
+                                </div>
+
+                                <!-- Min Max for slider -->
+                                 <div class="input-row" style="font-size: x-small;">
+                                    <div class="input-wrapper">
+                                        <label for="slider-min" style="font-size: x-small;">Min</label>
+                                        <input id="slider-min" type="text" class="standard-number-input" value="29.8" style="width: 45px; height: 22px">
+                                    </div>
+                                    <div class="input-wrapper">
+                                        <label for="slider-max" style="font-size: x-small;">Max</label>
+                                        <input id="slider-max" type="text" class="standard-number-input" value="30" style="width: 45px; height: 22px">
+                                    </div>
+                                 </div>
+
+                                 <!-- Max Amplitude -->
+                                 <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0, 0, 0, 0, 0.1);">
+                                    <div id="max-amplitude-display" style="font-size: small; font-weight: bold; margin-bottom: 12px; color: #333;">
+                                       Max Amplitude E / E0: Awaiting info...
+                                    </div>
+
+                                    <!-- Legend (aka the MADMAX Team) -->
+                                    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: #333;">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                           <div style="width: 25px; height: 2px; background-color: #E3A869;"></div>
+                                           <span>Real part Re(E)</span> 
+                                        </div>
+
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <div style="width: 25px; height: 0px; border-top: 2px dashed rgba(45, 50, 89, 0.6);"></div>
+                                            <span>Imaginary part Im(E)</span>
+                                        </div>
+                                    </div>
+                                 </div>
+
+                                <div style="display: flex; flex-direction: column; align-items: center; margin-top: 15px;">
+                                    <h5 style="margin: 0 0 8px 0; font-size: small; color: #333;">E-Field</h5>
+                                    <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
+                                        <span style="font-size: small; color: #5F5E5A;">Hide</span>
+                                        <label class="switch">
+                                            <input type="checkbox" id="efield-toggle-switch" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                        <span style="font-size: small; color: #5F5E5A;">Show</span>
+                                    </div>
+                                </div>
+                            </div> 
+                        </div>  
                     </div>
                 </div>
             </div>
@@ -257,18 +361,37 @@
             
         </div>
 
+
         <div class="plots">
+            <div id="plot-controls" style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px;">
+              <span style="font-size: small; color: #5F5E5A">Boost & Reflectivity</span>
+              <label class="switch">
+                <input type="checkbox" id="plot-toggle-switch">
+                <span class="slider"></span>
+              </label>
+              <span style="font-size: small; color: #5F5E5A;">Integration Time & Coupling</span>
+            </div>
             <!--display elements on the right side-->
 
             <!-- Boostplot -->
             <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-            <div  style="width: auto; height: 40%;">
+            <div id="wrapper-boost" style="width: auto; height: 40%;">
                 <canvas id="boostplot" aria-label="Plot for boostfactor curve"></canvas>
             </div>
 
             <!-- Reflectivity Plot -->
-            <div  style="width: auto; height: 40%;">
+            <div id="wrapper-reflectivity" style="width: auto; height: 40%;">
                 <canvas id="reflectivityplot" aria-label="Plot for reflectivity curve"></canvas>
+            </div>
+            
+            <!-- Signal Noise Ratio aka resulting integration time plot-->
+            <div id="wrapper-snr" style="width: auto; height: 40%; display: none;">
+                <canvas id="snrplot" aria-label="Plot for integration time"></canvas>
+            </div>
+
+            <!-- Coupling constant plot for each frequency-->
+            <div id="wrapper-coupling" style="width: auto; height: 40%; display: none;">
+                <canvas id="couplingplot" aria-label="Plot for axion-photon coupling"></canvas>
             </div>
         </div>
     </div>
